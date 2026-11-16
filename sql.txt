@@ -1,0 +1,116 @@
+-- a. Create a table Books
+
+
+CREATE TABLE Books (
+    id BIGINT IDENTITY(1,1) PRIMARY KEY,
+    title VARCHAR(200),
+    author_name VARCHAR(200),
+    prod_year BIGINT,
+    rating REAL CHECK (rating BETWEEN 0 AND 10)
+);
+
+GO
+
+-- b. Create a table AnnualSummary
+
+CREATE TABLE AnnualSummary (
+    prod_year BIGINT PRIMARY KEY,
+    book_id BIGINT REFERENCES Books(id),
+    rated_above_8 BIGINT CHECK (rated_above_8 >= 0)
+);
+
+GO
+
+-- c. Create a table RatingHistory
+
+CREATE TABLE RatingHistory (
+    id BIGINT (1,1) PRIMARY KEY,
+    book_id BIGINT REFERENCES Books(id),
+    old_rating REAL,
+    new_rating REAL,
+    changed_at DATETIME2 DEFAULT SYSDATETIME()
+);
+
+
+GO
+
+-- d. Create a trigger LogRatingChange
+
+CREATE TRIGGER LogRatingChange
+ON Books
+AFTER UPDATE
+AS
+BEGIN
+    INSERT INTO RatingHistory (book_id, old_rating, new_rating)
+    SELECT
+        d.id,
+        d.rating,
+        i.rating
+    FROM deleted AS d
+    INNER JOIN inserted AS i
+        ON d.id = i.id
+    WHERE d.rating <> i.rating
+    END;
+
+GO
+
+-- e. Create a function GetBestBook
+
+CREATE FUNCTION GetBestBook (@P_YEAR BIGINT)
+RETURNS BIGINT
+AS
+BEGIN
+    DECLARE @best_book_id BIGINT;
+
+    SELECT TOP 1
+        @best_book_id = id
+    FROM Books
+    WHERE prod_year = @P_YEAR
+    ORDER BY rating DESC;
+
+    RETURN @best_book_id;
+END;
+
+
+GO
+
+-- f. Create a function GetNumAbove8
+
+
+CREATE FUNCTION GetNumAbove8 (@P_YEAR BIGINT)
+RETURNS BIGINT
+AS
+BEGIN
+    DECLARE @num_books BIGINT;
+
+    SELECT @num_books = COUNT_BIG(*)
+    FROM Books
+    WHERE prod_year = @P_YEAR
+      AND rating > 8;
+
+    RETURN @num_books;
+END;
+
+GO
+
+-- g. Create a procedure AddSummaryItems
+
+
+CREATE PROCEDURE AddSummaryItems
+AS
+BEGIN
+    INSERT INTO AnnualSummary (
+        prod_year,
+        book_id,
+        rated_above_8
+    )
+    SELECT
+        prod_year,
+        dbo.GetBestBook(prod_year),
+        dbo.GetNumAbove8(prod_year)
+    FROM Books
+    GROUP BY prod_year;
+END;
+
+
+GO
