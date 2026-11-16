@@ -41,16 +41,20 @@ ON Books
 AFTER UPDATE
 AS
 BEGIN
-    INSERT INTO RatingHistory (book_id, old_rating, new_rating)
+
+    INSERT INTO RatingHistory
+        (book_id, old_rating, new_rating)
     SELECT
-        d.id,
+        i.id,
         d.rating,
         i.rating
-    FROM deleted AS d
-    INNER JOIN inserted AS i
-        ON d.id = i.id
-    WHERE d.rating <> i.rating
-    END;
+    FROM inserted AS i
+    INNER JOIN deleted AS d
+        ON i.id = d.id
+    WHERE i.rating <> d.rating
+       OR (i.rating IS NULL AND d.rating IS NOT NULL)
+       OR (i.rating IS NOT NULL AND d.rating IS NULL);
+END;
 
 GO
 
