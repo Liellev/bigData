@@ -16,7 +16,7 @@ GO
 CREATE TABLE AnnualSummary (
     prod_year BIGINT PRIMARY KEY,
     book_id BIGINT REFERENCES Books(id),
-    rated_above_8 BIGINT CHECK (rated_above_8 >= 0)
+    rated_above_8 BIGINT
 );
 
 GO
@@ -24,7 +24,7 @@ GO
 -- c. Create a table RatingHistory
 
 CREATE TABLE RatingHistory (
-    id BIGINT (1,1) PRIMARY KEY,
+    id BIGINT IDENTITY(1,1) PRIMARY KEY,
     book_id BIGINT REFERENCES Books(id),
     old_rating REAL,
     new_rating REAL,
