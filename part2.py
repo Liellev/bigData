@@ -3,7 +3,7 @@ from contextlib import AbstractContextManager
 from typing import Optional
 import math
 
-from sqlalchemy import BigInteger, Float, ForeignKey, String, select
+from sqlalchemy import BigInteger, DateTime, Float, ForeignKey, Integer, String, select
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column, relationship
 
 
@@ -26,8 +26,7 @@ class Member(Base):
     first_name: Mapped[str] = mapped_column(String)
     last_name: Mapped[str] = mapped_column(String)
     date_of_birth: Mapped[datetime.datetime] = mapped_column(DateTime)
-    borrowing_records: Mapped[list["BorrowingRecord"]] = relationship(
-        back_populates="member")
+    borrowing_records: Mapped[list["BorrowingRecord"]] = relationship(back_populates="member")
 
     def __init__(self, mid, first_name, last_name, date_of_birth):
         self.id = mid
@@ -37,22 +36,18 @@ class Member(Base):
         self.borrowing_records = []
 
     def borrow_book(self, book: Book) -> None:
-        active_records = [
-            record for record in self.borrowing_records
-            if record.return_time is None
-        ]
+        active_records = [ record for record in self.borrowing_records
+            if record.return_time is None]
 
         for record in active_records:
-            # Pending ORM records may not have their foreign key filled until flush.
             existing_id = (record.book_id if record.book_id is not None
                            else record.book.id)
             if existing_id == book.id:
-                raise ValueError("Member already has this book")
+                raise ValueError("Member already has this book!")
 
         if len(active_records) >= 5:
-            raise ValueError("Member already has five unreturned books")
+            raise ValueError("Member already has five unreturned books!")
 
-        # Append on the member side only; back_populates links record.member.
         self.borrowing_records.append(
             BorrowingRecord(book, datetime.datetime.now())
         )
@@ -64,20 +59,44 @@ class Member(Base):
                                else record.book.id)
                 if existing_id == book_id:
                     return record.return_book()
-        raise ValueError("Member has no active loan for this book")
+        raise ValueError("No active loan for this book")
 
 
 class BorrowingRecord(Base):
     __tablename__ = "BorrowingRecords"
-    # TODO
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    member_id: Mapped[str] = mapped_column(
+        String(255), ForeignKey("Members.id"), index=True
+    )
+    member: Mapped["Member"] = relationship(back_populates="borrowing_records")
+    book_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("Books.id"))
+    book: Mapped["Book"] = relationship()
+    borrowing_time: Mapped[datetime.datetime] = mapped_column(DateTime)
+    return_time: Mapped[Optional[datetime.datetime]] = mapped_column(
+        DateTime, nullable=True)
 
     def __init__(self, book: Book, borrowing_time):
-        # TODO
-        pass
+        self.book = book
+        self.borrowing_time = borrowing_time
+        self.return_time = None
 
     def return_book(self) -> float:
-        # TODO
-        pass
+        self.return_time = datetime.datetime.now()
+        elapsed = self.return_time - self.borrowing_time
+        borrowed_days = math.ceil(elapsed.total_seconds() / (24 * 60 * 60))
+        late_days = max(0, borrowed_days - 30)
+
+        daily_cost = 20.0 if self.book.prod_year >= 2020 else 10.0
+        fine = late_days * daily_cost
+
+        dob = self.member.date_of_birth.date()
+        returned_on = self.return_time.date()
+        age = (returned_on.year - dob.year
+               - ((returned_on.month, returned_on.day) < (dob.month, dob.day)))
+        if age < 18:
+            fine *= 0.5
+
+        return float(fine)
 
 
 class BaseRepository:
