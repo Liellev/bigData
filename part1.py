@@ -1,5 +1,5 @@
 import pyodbc
-# test! :) 
+
 
 class DatabaseManager:
     def __init__(self, driver: str, server: str, username: str, password: str, database: str):
@@ -31,7 +31,7 @@ class DatabaseManager:
 
             conn.commit()
 
-        except:
+        except Exception:
             conn.rollback()
             raise
 
@@ -46,6 +46,11 @@ class DatabaseManager:
             cursor = conn.cursor()
             cursor.execute("EXEC AddSummaryItems")
             conn.commit()
+
+        except Exception:
+            conn.rollback()
+            raise
+
         finally:
             conn.close()
 
@@ -84,7 +89,7 @@ class DatabaseManager:
             cursor.execute("""
                 SELECT TOP (?) prod_year
                 FROM AnnualSummary
-                ORDER BY total_rating DESC
+                ORDER BY rated_above_8 DESC, prod_year ASC;
             """, n)
 
             rows = cursor.fetchall()
@@ -108,7 +113,7 @@ class DatabaseManager:
 
             conn.commit()
 
-        except:
+        except Exception:
             conn.rollback()
             raise
 
