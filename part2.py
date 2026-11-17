@@ -188,7 +188,7 @@ class LibraryService:
             member = uow.member_repo.get_for_update(member_id)
             book = uow.book_repo.get_by_id(book_id)
             if book is None:
-                raise ValueError("Book does not exist")
+                raise ValueError("Book doesnt exist")
             member.borrow_book(book)
 
     def return_book_from_member(self, member_id, book_id) -> float:
